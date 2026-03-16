@@ -1,4 +1,4 @@
-name: Factory CI
+name: CI
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
 
 jobs:
   validate:
-    name: Validate factory
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +22,7 @@ jobs:
       - name: Validate shell scripts
         run: |
           sudo apt-get install -y shellcheck -q
-          shellcheck bootstrap.sh factory.sh review.sh scripts/setup-github.sh
+          shellcheck bootstrap.sh factory.sh review.sh scripts/setup-github.sh scripts/publish.sh
 
       - name: Validate project-template workflows
         run: |

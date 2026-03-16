@@ -1,0 +1,54 @@
+name: CD — Production
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-production:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PRODUCTION_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Promote staging image
+        run: |
+          STAGING_IMAGE="${{ secrets.ECR_REGISTRY }}/${{ github.event.repository.name }}:staging-${{ github.sha }}"
+          PROD_IMAGE="${{ secrets.ECR_REGISTRY }}/${{ github.event.repository.name }}:production-${{ github.sha }}"
+          docker pull "$STAGING_IMAGE"
+          docker tag "$STAGING_IMAGE" "$PROD_IMAGE"
+          docker push "$PROD_IMAGE"
+          echo "IMAGE=$PROD_IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy
+        run: echo "TODO — deploy $IMAGE to production environment"
+
+      - name: Smoke test
+        run: echo "TODO — run smoke tests against production"
+
+      - name: Notify
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            -d "{\"text\":\"Production deploy ${STATUS}: ${{ github.event.repository.name }} @ ${GITHUB_SHA::7}\"}" \
+            || true
